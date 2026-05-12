@@ -1,0 +1,1952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLAW VRT2 — Stock Intelligence v3</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg-panel: #131826;
+    --bg-panel-2: #1a2030;
+    --border: #2a3245;
+    --border-bright: #3a4560;
+    --text: #e4e8f0;
+    --text-dim: #8a95ad;
+    --text-very-dim: #5a657d;
+    --accent: #4fc3f7;
+    --accent-dim: #2a8db8;
+    --green: #4ade80;
+    --green-dim: #16a34a;
+    --red: #f87171;
+    --red-dim: #dc2626;
+    --yellow: #fbbf24;
+    --purple: #a78bfa;
+    --orange: #fb923c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 12px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── HEADER STRIP ── */
+  header {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .brand {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+  }
+  .brand .ver { color: var(--text-very-dim); font-size: 11px; font-weight: 400; margin-left: 6px; }
+  .ticker-pill {
+    display: flex; align-items: baseline; gap: 6px;
+    padding: 4px 10px; border-radius: 4px;
+    background: var(--bg-panel-2);
+    border: 1px solid var(--border);
+  }
+  .ticker-pill .sym { font-weight: 700; font-size: 18px; color: var(--text-dim); }
+  .ticker-pill .px  { font-weight: 600; font-size: 22px; }
+  .ticker-pill .pct { font-size: 16px; padding: 2px 7px; border-radius: 3px; }
+  .pct.up   { color: var(--green); background: rgba(74,222,128,0.1); }
+  .pct.down { color: var(--red); background: rgba(248,113,113,0.1); }
+  .pct.flat { color: var(--text-dim); }
+
+  .market-state {
+    margin-left: auto;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .market-state.open    { background: rgba(74,222,128,0.15); color: var(--green); }
+  .market-state.closed  { background: rgba(138,149,173,0.15); color: var(--text-dim); }
+  .market-state.ext     { background: rgba(251,191,36,0.15); color: var(--yellow); }
+
+  /* ── COMPOSITE SCORE HERO ── */
+  .composite-hero {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 12px;
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 24px;
+    align-items: center;
+  }
+  .composite-score {
+    text-align: center;
+    padding: 16px;
+    border-radius: 8px;
+    background: var(--bg-panel-2);
+    border: 2px solid var(--border-bright);
+  }
+  .composite-score .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .composite-score .num {
+    font-size: 56px;
+    font-weight: 800;
+    line-height: 1;
+    margin: 8px 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .composite-score .dir {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 6px;
+  }
+  .num.bull-strong, .dir.bull-strong { color: var(--green); }
+  .num.bull,        .dir.bull        { color: #86efac; }
+  .num.lean-bull,   .dir.lean-bull   { color: #bbf7d0; }
+  .num.neutral,     .dir.neutral     { color: var(--text-dim); }
+  .num.lean-bear,   .dir.lean-bear   { color: #fecaca; }
+  .num.bear,        .dir.bear        { color: #fca5a5; }
+  .num.bear-strong, .dir.bear-strong { color: var(--red); }
+
+  .composite-meta {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  .meta-cell {
+    padding: 8px 12px;
+    background: var(--bg-panel-2);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  .meta-cell .k { font-size: 13px; text-transform: uppercase; color: var(--text-dim); letter-spacing: 0.5px; }
+  .meta-cell .v { font-size: 36px; font-weight: 700; color: var(--text); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .meta-cell .v.green { color: var(--green); }
+  .meta-cell .v.red { color: var(--red); }
+
+  /* v3.1 Scan health pill */
+  .scan-health-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 12px;
+    background: var(--bg-panel-2); border: 1px solid var(--border);
+    font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+    cursor: pointer; user-select: none;
+    transition: border-color 0.15s;
+  }
+  .scan-health-pill:hover { border-color: var(--border-bright); }
+  .scan-health-pill .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--text-dim);
+  }
+  .scan-health-pill.green .dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .scan-health-pill.yellow .dot { background: #fbbf24; box-shadow: 0 0 6px #fbbf24; }
+  .scan-health-pill.red .dot { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .scan-health-pill.green { color: var(--green); }
+  .scan-health-pill.yellow { color: #fbbf24; }
+  .scan-health-pill.red { color: var(--red); }
+
+  /* v3.1 Daily brief panel */
+  .brief-panel {
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 20px; margin-bottom: 16px;
+  }
+  .brief-panel h2 { font-size: 14px; color: var(--text-dim); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .brief-panel .brief-md {
+    background: var(--bg-panel-2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 16px; font-size: 13px; line-height: 1.6;
+    white-space: pre-wrap; max-height: 600px; overflow-y: auto;
+    font-family: ui-monospace, monospace;
+  }
+  .brief-panel .brief-meta { font-size: 11px; color: var(--text-dim); margin-bottom: 8px; }
+  /* v3.2.0 #F1: Harness data quality badge */
+  .quality-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+    text-transform: uppercase; margin-left: 8px; vertical-align: middle;
+  }
+  .quality-badge.FULL       { background: #166534; color: #4ade80; }
+  .quality-badge.DEGRADED   { background: #78350f; color: #fbbf24; }
+  .quality-badge.INCOMPLETE { background: #7f1d1d; color: #f87171; }
+  .quality-badge.UNKNOWN    { background: #1e293b; color: #94a3b8; }
+  .findings-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; margin-top: 12px; }
+  .finding-item {
+    padding: 8px 12px; background: var(--bg-panel-2); border: 1px solid var(--border);
+    border-radius: 4px; font-size: 11px; font-family: ui-monospace, monospace;
+  }
+  .finding-item .name { color: var(--text); font-weight: 600; }
+  .finding-item .meta { color: var(--text-dim); font-size: 10px; margin-top: 2px; }
+
+  /* v3.1 Data source coloring for hypothesis table */
+  .ds-finnhub      { color: #60a5fa; }
+  .ds-edgar_xbrl   { color: #c084fc; }
+  .ds-edgar_filing { color: #c084fc; }
+  .ds-browser_scan { color: #fbbf24; }
+  .ds-computed     { color: #5eead4; }
+  .ds-external_paid { color: var(--text-dim); text-decoration: line-through; }
+  .meta-cell .v.small { font-size: 22px; }
+
+  /* ── PANELS GRID ── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 12px;
+  }
+  .panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow: hidden;
+  }
+  .panel h3 {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .panel h3 .badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: var(--bg-panel-2);
+    color: var(--accent);
+    border: 1px solid var(--border-bright);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .col-12 { grid-column: span 12; }
+  .col-8  { grid-column: span 8; }
+  .col-6  { grid-column: span 6; }
+  .col-4  { grid-column: span 4; }
+  .col-3  { grid-column: span 3; }
+
+  @media (max-width: 1200px) {
+    .col-8 { grid-column: span 12; }
+    .col-6 { grid-column: span 12; }
+    .col-4 { grid-column: span 6; }
+    .col-3 { grid-column: span 6; }
+    .composite-hero { grid-template-columns: 1fr; }
+    .composite-meta { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* ── TABLES ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  tr:last-child td { border-bottom: none; }
+  td.r { text-align: right; }
+  td.c { text-align: center; }
+
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .pill.bull, .pill.bull_strong { background: rgba(74,222,128,0.15); color: var(--green); }
+  .pill.bear, .pill.bear_strong { background: rgba(248,113,113,0.15); color: var(--red); }
+  .pill.context { background: rgba(167,139,250,0.15); color: var(--purple); }
+  .pill.neutral { background: rgba(138,149,173,0.15); color: var(--text-dim); }
+  .pill.live    { background: rgba(74,222,128,0.15); color: var(--green); }
+  .pill.muted   { background: rgba(138,149,173,0.15); color: var(--text-very-dim); }
+  .pill.degraded{ background: rgba(251,191,36,0.15); color: var(--yellow); }
+
+  /* ── COHORT HEATMAP ── */
+  .heatmap {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+    gap: 4px;
+  }
+  .heat-cell {
+    padding: 8px 6px;
+    border-radius: 4px;
+    text-align: center;
+    background: var(--bg-panel-2);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  .heat-cell:hover { transform: scale(1.05); border-color: var(--accent); }
+  .heat-cell .sym { font-size: 14px; color: var(--text-dim); font-weight: 600; }
+  .heat-cell .px  { font-size: 20px; font-weight: 700; margin: 3px 0; font-variant-numeric: tabular-nums; }
+  .heat-cell .pct { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* ── STACK DETECTOR ── */
+  .stack-alert {
+    padding: 16px;
+    border-radius: 6px;
+    text-align: center;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border: 2px solid;
+  }
+  .stack-alert.bull {
+    background: rgba(74,222,128,0.1);
+    color: var(--green);
+    border-color: var(--green);
+    box-shadow: 0 0 20px rgba(74,222,128,0.2);
+  }
+  .stack-alert.bear {
+    background: rgba(248,113,113,0.1);
+    color: var(--red);
+    border-color: var(--red);
+    box-shadow: 0 0 20px rgba(248,113,113,0.2);
+  }
+  .stack-alert.idle {
+    background: var(--bg-panel-2);
+    color: var(--text-very-dim);
+    border-color: var(--border);
+  }
+
+  /* ── BARS ── */
+  .bar-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+  .bar-row .lbl { font-size: 14px; min-width: 60px; color: var(--text-dim); }
+  .bar-row .bar-bg {
+    flex: 1; height: 20px; background: var(--bg-panel-2);
+    border-radius: 3px; overflow: hidden; position: relative;
+  }
+  .bar-row .bar-fill {
+    height: 100%; background: var(--accent);
+    border-radius: 3px;
+  }
+  .bar-row .bar-fill.bull { background: linear-gradient(90deg, var(--green-dim), var(--green)); }
+  .bar-row .bar-fill.bear { background: linear-gradient(90deg, var(--red-dim), var(--red)); }
+  .bar-row .val { font-size: 14px; min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* ── CONNECTION INDICATOR ── */
+  .conn {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+    background: var(--text-very-dim);
+    animation: none;
+  }
+  .conn.live { background: var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+  .empty { color: var(--text-very-dim); font-style: italic; padding: 16px 0; text-align: center; font-size: 14px; }
+
+  /* ── TABS ── */
+  .tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tab-btn {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 8px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    font-family: inherit;
+  }
+  .tab-btn:hover { color: var(--text); border-color: var(--border-bright); }
+  .tab-btn.active {
+    background: var(--accent-dim);
+    color: var(--text);
+    border-color: var(--accent);
+  }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── COUNTDOWN ── */
+  .countdown {
+    text-align: center;
+    padding: 8px;
+  }
+  .countdown .num {
+    font-size: 72px;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .countdown .lbl {
+    font-size: 14px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── CONTRIBUTION ROWS ── */
+  .contrib-row {
+    display: grid;
+    grid-template-columns: 80px 60px 1fr 60px;
+    gap: 8px;
+    padding: 6px 0;
+    align-items: center;
+    font-size: 15px;
+    border-bottom: 1px dashed var(--border);
+  }
+  .contrib-row:last-child { border-bottom: none; }
+  .contrib-row .hyp { font-weight: 700; color: var(--accent); }
+  .contrib-row .age { color: var(--text-very-dim); font-size: 10px; text-align: right; }
+  .contrib-row .val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .contrib-row .val.bull { color: var(--green); }
+  .contrib-row .val.bear { color: var(--red); }
+
+  /* ── SCROLLABLE PANEL CONTENT ── */
+  .scroll-panel { max-height: 320px; overflow-y: auto; }
+  .scroll-panel::-webkit-scrollbar { width: 6px; }
+  .scroll-panel::-webkit-scrollbar-track { background: var(--bg-panel-2); }
+  .scroll-panel::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <!-- PORT display: source of truth is lib/config.js PORT. Update here manually if port changes. -->
+  <div class="brand">CLAW VRT2 <span class="ver">v3.1 / port 51752</span></div>
+  <div class="ticker-pill" id="hdr-crdo"><span class="sym">VRT</span><span class="px">—</span><span class="pct flat">—</span></div>
+  <div class="ticker-pill" id="hdr-alab"><span class="sym">ALAB</span><span class="px">—</span><span class="pct flat">—</span></div>
+  <div class="ticker-pill" id="hdr-smh"><span class="sym">SMH</span><span class="px">—</span><span class="pct flat">—</span></div>
+  <div class="ticker-pill" id="hdr-vix"><span class="sym">VIX</span><span class="px">—</span><span class="pct flat">—</span></div>
+  <div class="ticker-pill" id="hdr-hyg"><span class="sym">HYG</span><span class="px">—</span><span class="pct flat">—</span></div>
+  <div class="market-state" id="market-state">—</div>
+  <div class="scan-health-pill" id="scan-health" title="Click for scan kickoff">
+    <span class="dot" id="scan-health-dot"></span>
+    <span class="lbl" id="scan-health-lbl">SCAN —</span>
+  </div>
+  <div style="font-size:14px;color:var(--text-very-dim);"><span class="conn" id="conn-dot"></span><span id="conn-label">connecting…</span></div>
+</header>
+
+<!-- ── COMPOSITE HERO ── -->
+<div class="composite-hero">
+  <div class="composite-score">
+    <div class="label">Composite Score</div>
+    <div class="num neutral" id="comp-num">0.0</div>
+    <div class="dir neutral" id="comp-dir">NEUTRAL</div>
+  </div>
+  <div class="composite-meta">
+    <div class="meta-cell">
+      <div class="k">Bull Score</div>
+      <div class="v green" id="comp-bull">0.0</div>
+    </div>
+    <div class="meta-cell">
+      <div class="k">Bear Score</div>
+      <div class="v red" id="comp-bear">0.0</div>
+    </div>
+    <div class="meta-cell">
+      <div class="k">Active Signals</div>
+      <div class="v" id="comp-active">0</div>
+    </div>
+    <div class="meta-cell">
+      <div class="k">Earnings Mult</div>
+      <div class="v small" id="comp-earnw">1.0×</div>
+    </div>
+    <div class="meta-cell">
+      <div class="k">VIX Regime</div>
+      <div class="v small" id="comp-vix">—</div>
+    </div>
+    <div class="meta-cell">
+      <div class="k">Stale (min)</div>
+      <div class="v small" id="comp-stale">—</div>
+    </div>
+    <div class="meta-cell">
+      <div class="k">WS State</div>
+      <div class="v small" id="comp-ws">—</div>
+    </div>
+    <div class="meta-cell">
+      <div class="k">Uptime</div>
+      <div class="v small" id="comp-uptime">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── TABS ── -->
+<div class="tabs">
+  <button class="tab-btn active" data-tab="live">Live</button>
+  <button class="tab-btn" data-tab="graphs">Graphs</button>
+  <button class="tab-btn" data-tab="brief">Brief</button>
+  <button class="tab-btn" data-tab="hypotheses">Hypotheses</button>
+  <button class="tab-btn" data-tab="cohorts">Cohorts</button>
+  <button class="tab-btn" data-tab="fundamentals">Fundamentals</button>
+  <button class="tab-btn" data-tab="backtest">Backtest</button>
+  <button class="tab-btn" data-tab="position">Position</button>
+  <button class="tab-btn" data-tab="regime">Regime</button>
+  <button class="tab-btn" data-tab="revisions">Revisions</button>
+</div>
+
+<!-- ── LIVE TAB ── -->
+<div class="tab-content active" id="tab-live">
+  <div class="grid">
+
+    <!-- Stack detector -->
+    <div class="panel col-4">
+      <h3>Signal Stack <span class="badge">3+ uncorrelated</span></h3>
+      <div id="stack-detector" class="stack-alert idle">No stack active</div>
+      <div style="margin-top:10px;font-size:14px;color:var(--text-very-dim);text-align:center;">
+        Stacks fire when 3+ uncorrelated signals align same-direction within 24h.
+        Hit rate ~15-20pp higher than individual signals.
+      </div>
+    </div>
+
+    <!-- Composite contribution breakdown -->
+    <div class="panel col-8">
+      <h3>Active Signal Contributions <span class="badge">decay-weighted</span></h3>
+      <div id="contributions" class="scroll-panel"><div class="empty">No active signals</div></div>
+    </div>
+
+    <!-- VRT/ETN correlation watch -->
+    <div class="panel col-4">
+      <h3>VRT/ETN Correlation</h3>
+      <div style="text-align:center;padding:8px;">
+        <div style="font-size:42px;font-weight:800;color:var(--accent);" id="alab-corr">—</div>
+        <div style="font-size:13px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-top:4px;">20-Day Rolling</div>
+        <div style="margin-top:10px;font-size:16px;color:var(--text-dim);" id="alab-corr-status">—</div>
+      </div>
+    </div>
+
+    <!-- Earnings countdown -->
+    <div class="panel col-4">
+      <h3>Earnings Countdown <span class="badge" id="earn-status">—</span></h3>
+      <div class="countdown">
+        <div class="num" id="earn-days">—</div>
+        <div class="lbl">days to next earnings</div>
+        <div style="font-size:15px;color:var(--text-dim);margin-top:8px;" id="earn-date">—</div>
+      </div>
+    </div>
+
+    <!-- Recent signals -->
+    <div class="panel col-4">
+      <h3>Recent Signal Fires <span class="badge">last 12h</span></h3>
+      <div id="signals-list" class="scroll-panel" style="max-height:240px;"><div class="empty">No signals fired</div></div>
+    </div>
+
+    <!-- Customer financials -->
+    <div class="panel col-6">
+      <h3>Financials & Inventory <span class="badge">from SEC 10-Qs</span></h3>
+      <div id="conc-bars"><div class="empty">No financials data yet — run jobs/edgar_crdo.js</div></div>
+    </div>
+
+    <!-- Insider activity -->
+    <div class="panel col-6">
+      <h3>Insider Activity <span class="badge">Form 4</span></h3>
+      <div id="insiders-list" class="scroll-panel"><div class="empty">No insider data yet — run jobs/insider_crdo.js</div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── GRAPHS TAB ── -->
+<div class="tab-content" id="tab-graphs">
+  <div class="grid">
+
+    <!-- Row 1: Price + Relative Performance -->
+    <div class="panel col-8">
+      <h3>VRT Price — 30 Days <span class="badge" id="g-price-badge">with signal overlays</span></h3>
+      <canvas id="g-price" height="120"></canvas>
+    </div>
+    <div class="panel col-4">
+      <h3>VRT vs SMH — Normalized</h3>
+      <canvas id="g-relative" height="120"></canvas>
+    </div>
+
+    <!-- Row 2: Signal intelligence -->
+    <div class="panel col-4">
+      <h3>VRT/ETN Correlation — Rolling 20d</h3>
+      <canvas id="g-corr-history" height="140"></canvas>
+    </div>
+    <div class="panel col-4">
+      <h3>Composite Score History</h3>
+      <canvas id="g-composite-history" height="140"></canvas>
+    </div>
+    <div class="panel col-4">
+      <h3>Signal Timeline — Last 30 Days</h3>
+      <div id="g-signal-gantt" style="overflow-y:auto;max-height:280px;"></div>
+    </div>
+
+    <!-- Row 3: Fundamentals + Accuracy -->
+    <div class="panel col-4">
+      <h3>Inventory Build — H10 Signal <span class="badge">QoQ</span></h3>
+      <canvas id="g-inventory" height="140"></canvas>
+    </div>
+    <div class="panel col-4">
+      <h3>Hit Rate by Hypothesis <span class="badge">backtest</span></h3>
+      <canvas id="g-hitrates" height="140"></canvas>
+    </div>
+    <div class="panel col-4">
+      <h3>Cohort Performance Today</h3>
+      <canvas id="g-cohort-perf" height="140"></canvas>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── BRIEF TAB (v3.1) ── -->
+<div class="tab-content" id="tab-brief">
+  <div class="brief-panel">
+    <h2>Today's Intelligence Brief</h2>
+    <div class="brief-meta" id="brief-meta">Loading...</div>
+    <div class="brief-md" id="brief-md">No brief generated yet. The browser harness daily review fires at 6am ET.</div>
+  </div>
+  <div class="brief-panel">
+    <h2>Recent Findings (Last 7 Days)</h2>
+    <div class="findings-list" id="findings-list">Loading...</div>
+  </div>
+  <div class="brief-panel">
+    <h2>Browser Harness Status</h2>
+    <div class="composite-meta" id="harness-status">
+      <div class="meta-cell"><div class="k">Daemon</div><div class="v" id="hs-daemon">—</div></div>
+      <div class="meta-cell"><div class="k">Last Heartbeat</div><div class="v small" id="hs-beat">—</div></div>
+      <div class="meta-cell"><div class="k">Queue Depth</div><div class="v" id="hs-queue">—</div></div>
+      <div class="meta-cell"><div class="k">Running</div><div class="v" id="hs-running">—</div></div>
+      <div class="meta-cell"><div class="k">Completed Today</div><div class="v green" id="hs-done">—</div></div>
+      <div class="meta-cell"><div class="k">Failed Today</div><div class="v red" id="hs-failed">—</div></div>
+    </div>
+    <div style="margin-top:12px;font-size:15px;color:var(--text-dim);">
+      Manual trigger: <a href="/scan/kickoff" style="color:#fbbf24;" target="_blank">/scan/kickoff</a>
+      &nbsp;|&nbsp; Health JSON: <a href="/scan/health" style="color:#fbbf24;" target="_blank">/scan/health</a>
+    </div>
+  </div>
+</div>
+
+<!-- ── HYPOTHESES TAB ── -->
+<div class="tab-content" id="tab-hypotheses">
+  <div class="panel col-12">
+    <h3>Hypothesis Performance <span class="badge">v3.1 — 38 hypotheses, 30 active</span></h3>
+    <table id="hyp-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Description</th>
+          <th>Direction</th>
+          <th>Source</th>
+          <th>Regime</th>
+          <th class="r">Weight</th>
+          <th class="r">Hit Rate</th>
+          <th class="r">N</th>
+          <th class="r">Half Life</th>
+          <th class="c">Status</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── COHORTS TAB ── -->
+<div class="tab-content" id="tab-cohorts">
+  <div class="grid">
+    <div class="panel col-12">
+      <h3>Cohort Heatmap <span class="badge">all 33 tickers</span></h3>
+      <div id="heatmap" class="heatmap"></div>
+    </div>
+    <div class="panel col-12">
+      <h3>Correlations vs VRT <span class="badge">5d / 20d rolling</span></h3>
+      <table id="corr-table">
+        <thead><tr><th>Peer</th><th class="r">5d</th><th class="r">20d</th><th class="r">N obs</th><th>Updated</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── FUNDAMENTALS TAB ── -->
+<div class="tab-content" id="tab-fundamentals">
+  <div class="grid">
+    <div class="panel col-6">
+      <h3>Financial Line Items</h3>
+      <table id="fin-table">
+        <thead><tr><th>Period</th><th>Metric</th><th class="r">Value</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="panel col-6">
+      <h3>News Events</h3>
+      <table id="news-table">
+        <thead><tr><th>Date</th><th>Category</th><th>Headline</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="panel col-12">
+      <h3>Lawsuit Watch (H15)</h3>
+      <table id="lawsuit-table">
+        <thead><tr><th>Filed</th><th>Court</th><th>Case</th><th>Suit Type</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── BACKTEST TAB ── -->
+<div class="tab-content" id="tab-backtest">
+  <div class="panel col-12">
+    <h3>Backtest Results <span class="badge">historical hit rates</span></h3>
+    <div style="font-size:15px;color:var(--text-dim);margin-bottom:12px;">
+      Run <code style="background:var(--bg-panel-2);padding:2px 6px;border-radius:3px;">node jobs/backtest_crdo.js</code> to populate.
+      Then run <code style="background:var(--bg-panel-2);padding:2px 6px;border-radius:3px;">node jobs/recalibrate_weights_crdo.js --seed-from-backtest</code> to seed live weights.
+    </div>
+    <table id="backtest-table">
+      <thead>
+        <tr>
+          <th>Hypothesis</th>
+          <th class="r">Fires</th>
+          <th class="r">Hits</th>
+          <th class="r">Misses</th>
+          <th class="r">Hit Rate</th>
+          <th class="r">Avg α (hit)</th>
+          <th class="c">Recommendation</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════════════════
+// CLAW VRT2 Dashboard v3 — Client-side state management
+// ══════════════════════════════════════════════════════════════════════════
+
+const API = window.location.origin;  // dashboard served by same server
+const REFRESH_MS = 5000;
+let connStatus = 'disconnected';
+
+// ── HELPERS ────────────────────────────────────────────────────────────
+function fmt(n, d) { if (n == null || isNaN(n)) return '—'; return Number(n).toFixed(d == null ? 2 : d); }
+function fmtPct(n) { if (n == null || isNaN(n)) return '—'; return (n >= 0 ? '+' : '') + Number(n).toFixed(2) + '%'; }
+function pctClass(n) { if (n == null || isNaN(n)) return 'flat'; if (n > 0) return 'up'; if (n < 0) return 'down'; return 'flat'; }
+function classify(n, t1, t2, t3) {
+  if (n == null) return 'neutral';
+  if (n >= t3) return 'bull-strong';
+  if (n >= t2) return 'bull';
+  if (n >= t1) return 'lean-bull';
+  if (n <= -t3) return 'bear-strong';
+  if (n <= -t2) return 'bear';
+  if (n <= -t1) return 'lean-bear';
+  return 'neutral';
+}
+function timeAgo(ts) {
+  const ms = Date.now() - ts;
+  const min = Math.floor(ms / 60000);
+  if (min < 1) return 'just now';
+  if (min < 60) return min + 'm';
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return hr + 'h';
+  return Math.floor(hr / 24) + 'd';
+}
+function fmtUptime(s) {
+  if (s == null) return '—';
+  if (s < 3600) return Math.floor(s/60) + 'm';
+  if (s < 86400) return Math.floor(s/3600) + 'h';
+  return Math.floor(s/86400) + 'd';
+}
+
+async function fetchJSON(path) {
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (e) { return null; }
+}
+
+// ── HEADER UPDATE ──────────────────────────────────────────────────────
+function updateHeader(prices, status) {
+  const upd = (id, ticker) => {
+    const p = prices[ticker];
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!p) {
+      el.querySelector('.px').textContent = '—';
+      el.querySelector('.pct').textContent = '—';
+      el.querySelector('.pct').className = 'pct flat';
+      return;
+    }
+    el.querySelector('.px').textContent = '$' + fmt(p.price);
+    const pct = el.querySelector('.pct');
+    pct.textContent = fmtPct(p.pct);
+    pct.className = 'pct ' + pctClass(p.pct);
+  };
+  upd('hdr-crdo', 'VRT');
+  upd('hdr-alab', 'ALAB');
+  upd('hdr-smh', 'SMH');
+  upd('hdr-vix', 'VIX_LATEST');
+  upd('hdr-hyg', 'HYG');
+
+  const ms = document.getElementById('market-state');
+  if (status && status.market_hours) {
+    ms.textContent = '● Market Open';
+    ms.className = 'market-state open';
+  } else {
+    ms.textContent = '◌ Market Closed';
+    ms.className = 'market-state closed';
+  }
+}
+
+// ── COMPOSITE HERO UPDATE ──────────────────────────────────────────────
+function updateComposite(comp, status) {
+  if (!comp) return;
+  const num = document.getElementById('comp-num');
+  const dir = document.getElementById('comp-dir');
+  const cls = classify(comp.score, 1.5, 4, 8);
+  num.textContent = (comp.score >= 0 ? '+' : '') + fmt(comp.score, 1);
+  num.className = 'num ' + cls;
+  dir.textContent = (comp.direction || 'NEUTRAL').replace(/_/g, ' ');
+  dir.className = 'dir ' + cls;
+
+  document.getElementById('comp-bull').textContent = '+' + fmt(comp.bull_score, 1);
+  document.getElementById('comp-bear').textContent = fmt(comp.bear_score, 1);
+  document.getElementById('comp-active').textContent = comp.n_active_signals || 0;
+  document.getElementById('comp-earnw').textContent = fmt(comp.earnings_weight, 1) + '×';
+  document.getElementById('comp-vix').textContent = comp.vix_regime != null ? fmt(comp.vix_regime, 1) : '—';
+
+  if (status) {
+    document.getElementById('comp-stale').textContent = status.stale_mins != null ? fmt(status.stale_mins, 1) : '—';
+    document.getElementById('comp-ws').textContent = status.ws_state === 1 ? 'OPEN' : 'CLOSED';
+    document.getElementById('comp-uptime').textContent = fmtUptime(status.uptime);
+  }
+
+  // Contributions
+  const cBox = document.getElementById('contributions');
+  if (!comp.contributions || comp.contributions.length === 0) {
+    cBox.innerHTML = '<div class="empty">No active signals</div>';
+  } else {
+    cBox.innerHTML = comp.contributions.map(c => {
+      const dirCls = c.contribution > 0 ? 'bull' : (c.contribution < 0 ? 'bear' : '');
+      return `<div class="contrib-row">
+        <span class="hyp">${c.hyp_id}</span>
+        <span class="pill ${(c.direction || 'neutral').toLowerCase()}">${c.direction || '—'}</span>
+        <span style="color:var(--text-dim);font-size:14px;">w=${fmt(c.base_weight,1)} hr=${c.hit_rate != null ? (c.hit_rate*100).toFixed(0)+'%' : '—'} c=${fmt(c.confidence,1)} d=${fmt(c.decay,2)}</span>
+        <span class="val ${dirCls}">${c.contribution >= 0 ? '+' : ''}${fmt(c.contribution, 2)}</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ── STACK DETECTOR ─────────────────────────────────────────────────────
+function updateStack(signals) {
+  const stackEl = document.getElementById('stack-detector');
+  if (!signals || !Array.isArray(signals)) {
+    stackEl.className = 'stack-alert idle';
+    stackEl.innerHTML = 'No data';
+    return;
+  }
+  // Find any STACK_BULL or STACK_BEAR fired in the last 4h
+  const cutoff = Date.now() - 4 * 3600000;
+  const stackBull = signals.find(s => s.hyp_id === 'STACK_BULL' && s.ts > cutoff);
+  const stackBear = signals.find(s => s.hyp_id === 'STACK_BEAR' && s.ts > cutoff);
+
+  if (stackBull) {
+    stackEl.className = 'stack-alert bull';
+    stackEl.innerHTML = '🔼 STACK BULL ACTIVE<br><span style="font-size:14px;font-weight:400;text-transform:none;letter-spacing:0;">' + (stackBull.trigger_desc || '') + '</span>';
+  } else if (stackBear) {
+    stackEl.className = 'stack-alert bear';
+    stackEl.innerHTML = '🔽 STACK BEAR ACTIVE<br><span style="font-size:14px;font-weight:400;text-transform:none;letter-spacing:0;">' + (stackBear.trigger_desc || '') + '</span>';
+  } else {
+    stackEl.className = 'stack-alert idle';
+    stackEl.innerHTML = 'No stack active';
+  }
+}
+
+// ── SIGNALS LIST ───────────────────────────────────────────────────────
+function updateSignals(signals) {
+  const box = document.getElementById('signals-list');
+  if (!signals || signals.length === 0) {
+    box.innerHTML = '<div class="empty">No signals fired</div>';
+    return;
+  }
+  const rows = signals.slice(0, 30).map(s => {
+    const dirPill = `<span class="pill ${(s.direction || 'neutral').toLowerCase()}">${s.direction || '—'}</span>`;
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:15px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div><strong style="color:var(--accent);">${s.hyp_id}</strong> ${dirPill}</div>
+        <div style="color:var(--text-very-dim);font-size:13px;">${timeAgo(s.ts)}</div>
+      </div>
+      <div style="color:var(--text-dim);margin-top:3px;font-size:13px;">${s.trigger_desc || ''}</div>
+    </div>`;
+  }).join('');
+  box.innerHTML = rows;
+}
+
+// ── VRT/ETN CORRELATION ──────────────────────────────────────────────
+function updateAlabCorr(status) {
+  if (!status) return;
+  const corrEl = document.getElementById('alab-corr');
+  const statusEl = document.getElementById('alab-corr-status');
+  const corr = status.vrt_etn_corr;
+  if (corr == null) {
+    corrEl.textContent = '—';
+    statusEl.textContent = 'awaiting data';
+    return;
+  }
+  corrEl.textContent = fmt(corr, 3);
+  if (corr < 0.40) {
+    corrEl.style.color = 'var(--red)';
+    statusEl.textContent = '⚠ BREAK — H6 candidate';
+    statusEl.style.color = 'var(--red)';
+  } else if (corr < 0.55) {
+    corrEl.style.color = 'var(--yellow)';
+    statusEl.textContent = 'weakening';
+    statusEl.style.color = 'var(--yellow)';
+  } else {
+    corrEl.style.color = 'var(--green)';
+    statusEl.textContent = 'normal sympathy';
+    statusEl.style.color = 'var(--green)';
+  }
+}
+
+// ── EARNINGS COUNTDOWN ─────────────────────────────────────────────────
+function updateEarnings(status) {
+  if (!status || !status.earnings_date) return;
+  const ed = new Date(status.earnings_date);
+  const days = Math.ceil((ed.getTime() - Date.now()) / 86400000);
+  document.getElementById('earn-days').textContent = days;
+  document.getElementById('earn-date').textContent = ed.toDateString();
+  const statusBadge = document.getElementById('earn-status');
+  if (days <= 0) statusBadge.textContent = 'POST';
+  else if (days <= 3) statusBadge.textContent = 'IMMINENT';
+  else if (days <= 10) statusBadge.textContent = 'NEAR';
+  else if (days <= 30) statusBadge.textContent = 'APPROACHING';
+  else statusBadge.textContent = 'NORMAL';
+}
+
+// ── COHORT HEATMAP ─────────────────────────────────────────────────────
+function updateHeatmap(prices) {
+  if (!prices) return;
+  const tickers = Object.keys(prices)
+    .filter(t => !t.startsWith('_') && t !== 'VIX_LATEST')
+    .sort((a, b) => Math.abs((prices[b].pct || 0)) - Math.abs((prices[a].pct || 0)));
+  const html = tickers.map(t => {
+    const p = prices[t];
+    if (!p || p.price == null) return '';
+    const cls = pctClass(p.pct);
+    return `<div class="heat-cell">
+      <div class="sym">${t}</div>
+      <div class="px">$${fmt(p.price)}</div>
+      <div class="pct ${cls}">${fmtPct(p.pct)}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('heatmap').innerHTML = html;
+}
+
+// ── CONCENTRATION BARS ─────────────────────────────────────────────────
+async function updateConcentration() {
+  const data = await fetchJSON('/financials');
+  const box = document.getElementById('conc-bars');
+  if (!data || data.length === 0) {
+    box.innerHTML = '<div class="empty">No financials data yet — run jobs/edgar_crdo.js</div>';
+    return;
+  }
+  // Group by period_end, show most recent 4 periods
+  const byPeriod = {};
+  data.forEach(r => {
+    if (!byPeriod[r.period_end]) byPeriod[r.period_end] = [];
+    byPeriod[r.period_end].push(r);
+  });
+  const periods = Object.keys(byPeriod).sort().reverse().slice(0, 4);
+  const html = periods.map(p => {
+    const customers = byPeriod[p].slice(0, 5);
+    return `<div style="margin-bottom:12px;">
+      <div style="font-size:14px;color:var(--text-dim);margin-bottom:4px;">${p}</div>
+      ${customers.map(c => `
+        <div class="bar-row">
+          <span class="lbl">${c.customer_id}</span>
+          <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(c.pct_revenue || 0, 100)}%;"></div></div>
+          <span class="val">${fmt(c.pct_revenue, 1)}%</span>
+        </div>
+      `).join('')}
+    </div>`;
+  }).join('');
+  box.innerHTML = html;
+}
+
+// ── INSIDER LIST ───────────────────────────────────────────────────────
+async function updateInsiders() {
+  const data = await fetchJSON('/insiders');
+  const box = document.getElementById('insiders-list');
+  if (!data || data.length === 0) {
+    box.innerHTML = '<div class="empty">No insider data yet — run jobs/insider_crdo.js</div>';
+    return;
+  }
+  const html = data.slice(0, 12).map(i => `
+    <div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:15px;">
+      <div style="display:flex;justify-content:space-between;">
+        <strong>${i.insider_name || '—'}</strong>
+        <span style="color:var(--text-dim);">${i.transaction_date}</span>
+      </div>
+      <div style="color:var(--text-dim);font-size:14px;">
+        ${i.transaction_code || '?'} ${fmt(i.shares, 0)} @ $${fmt(i.price_per_share)} = $${fmt(i.total_value/1000, 0)}K
+      </div>
+    </div>
+  `).join('');
+  box.innerHTML = html;
+}
+
+// ── HYPOTHESES TABLE (v3.1 — uses /weights_v3 with data_source) ───────
+async function updateHypotheses() {
+  // /weights_v3 is the v3.1 endpoint with data_source field. The migration
+  // is a hard prerequisite for v3.1, so we don't fall back to /weights.
+  const weights = await fetchJSON('/weights_v3');
+  const tbody = document.querySelector('#hyp-table tbody');
+  if (!weights) {
+    tbody.innerHTML = '<tr><td colspan="10" class="empty">Weights endpoint not yet available</td></tr>';
+    return;
+  }
+  const rows = weights.map(w => {
+    let statusPill = '';
+    if (w.enabled === 0) {
+      const phase = w.phase || 'MUTED';
+      const cls = phase === 'KILLED' ? 'pill degraded' : 'pill muted';
+      statusPill = `<span class="${cls}">${phase}</span>`;
+    } else if (w.hit_rate != null && w.hit_rate < 0.40) {
+      statusPill = '<span class="pill degraded">DEGRADED</span>';
+    } else {
+      statusPill = '<span class="pill live">LIVE</span>';
+    }
+    const ds = w.data_source || 'unknown';
+    return `<tr>
+      <td><strong style="color:var(--accent);">${w.hyp_id}</strong></td>
+      <td style="font-size:14px;color:var(--text-dim);">${w.description || ''}</td>
+      <td><span class="pill ${(w.direction || 'neutral').toLowerCase()}">${w.direction}</span></td>
+      <td><span class="ds-${ds}" style="font-size:14px;font-family:ui-monospace,monospace;">${ds}</span></td>
+      <td style="font-size:14px;color:var(--text-very-dim);">${w.regime_class || ''}</td>
+      <td class="r">${fmt(w.weight, 2)}</td>
+      <td class="r">${w.hit_rate != null ? (w.hit_rate * 100).toFixed(0) + '%' : '—'}</td>
+      <td class="r">${w.n_signals || 0}</td>
+      <td class="r" style="font-size:14px;">${w.half_life_min} min</td>
+      <td class="c">${statusPill}</td>
+    </tr>`;
+  }).join('');
+  tbody.innerHTML = rows;
+}
+
+// ── BRIEF / FINDINGS / SCAN HEALTH (v3.1) ──────────────────────────────
+async function updateBrief() {
+  const brief = await fetchJSON('/daily_brief').catch(() => null);
+  const meta = document.getElementById('brief-meta');
+  const md = document.getElementById('brief-md');
+  if (!brief) {
+    if (meta) meta.textContent = 'No brief generated yet';
+    if (md) md.textContent = 'No brief available. The browser harness daily review fires at 6am ET via launchd. Manual trigger: /scan/kickoff';
+    return;
+  }
+  if (meta) {
+    const gen = brief.generated_ts ? new Date(brief.generated_ts).toLocaleString() : 'unknown';
+    const quality = brief.data_quality || 'UNKNOWN';
+    const uptimeTxt = brief.harness_uptime_pct != null ? ' · ' + brief.harness_uptime_pct + '% uptime' : '';
+    const badge = '<span class="quality-badge ' + quality + '">' + quality + '</span>';
+    // v3.2.0 #F1: innerHTML for the badge; brief_md stays textContent (no XSS risk — local server)
+    meta.innerHTML = 'Brief for ' + brief.brief_date + ' &bull; generated ' + gen +
+      ' &bull; signals: ' + (brief.signals_fired || 0) + ' fired, ' + (brief.signals_suppressed || 0) +
+      ' suppressed' + uptimeTxt + ' ' + badge;
+  }
+  if (md) md.textContent = brief.brief_md || '(empty brief)';
+}
+
+async function updateFindings() {
+  const findings = await fetchJSON('/findings').catch(() => null);
+  const list = document.getElementById('findings-list');
+  if (!list) return;
+  if (!findings || findings.length === 0) {
+    list.innerHTML = '<div class="finding-item">No findings yet — browser daemon has not run</div>';
+    return;
+  }
+  list.innerHTML = findings.map(f => {
+    const when = new Date(f.mtime).toLocaleString();
+    const kb = (f.size / 1024).toFixed(1);
+    return `<div class="finding-item">
+      <div class="name">${f.filename}</div>
+      <div class="meta">${f.date} • ${kb} KB • ${when}</div>
+    </div>`;
+  }).join('');
+}
+
+async function updateScanHealth() {
+  const health = await fetchJSON('/scan/health').catch(() => null);
+  const pill = document.getElementById('scan-health');
+  const dot = document.getElementById('scan-health-dot');
+  const lbl = document.getElementById('scan-health-lbl');
+  if (!pill || !lbl) return;
+
+  if (!health) {
+    pill.classList.remove('green', 'yellow', 'red');
+    lbl.textContent = 'SCAN OFF';
+    return;
+  }
+  pill.classList.remove('green', 'yellow', 'red');
+  const state = (health.state || 'UNKNOWN').toLowerCase();
+  if (state === 'green') pill.classList.add('green');
+  else if (state === 'yellow') pill.classList.add('yellow');
+  else if (state === 'red') pill.classList.add('red');
+
+  const queueInfo = health.queue_depth > 0 ? ` Q${health.queue_depth}` : '';
+  lbl.textContent = `SCAN ${state.toUpperCase()}${queueInfo}`;
+
+  // Also populate harness status panel if visible
+  const dE = document.getElementById('hs-daemon');
+  if (dE) {
+    dE.textContent = health.last_heartbeat ? 'ALIVE' : 'DOWN';
+    dE.className = 'v ' + (health.last_heartbeat ? 'green' : 'red');
+  }
+  const bE = document.getElementById('hs-beat');
+  if (bE && health.beat_age_ms != null) {
+    const mins = Math.round(health.beat_age_ms / 60000);
+    bE.textContent = mins + ' min ago';
+  }
+  const qE = document.getElementById('hs-queue');
+  if (qE) qE.textContent = health.queue_depth || 0;
+  const rE = document.getElementById('hs-running');
+  if (rE) rE.textContent = health.running || 0;
+  const cE = document.getElementById('hs-done');
+  if (cE) cE.textContent = health.completed_today || 0;
+  const fE = document.getElementById('hs-failed');
+  if (fE) fE.textContent = health.failed_today || 0;
+}
+
+// Wire up scan health pill click → kickoff URL
+document.addEventListener('DOMContentLoaded', function() {
+  const pill = document.getElementById('scan-health');
+  if (pill) {
+    pill.addEventListener('click', function() {
+      window.open('/scan/kickoff', '_blank');
+    });
+  }
+});
+
+// ── CORRELATIONS TABLE ─────────────────────────────────────────────────
+async function updateCorrelations() {
+  const corrs = await fetchJSON('/correlations');
+  const tbody = document.querySelector('#corr-table tbody');
+  if (!corrs || corrs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">No correlation data yet — run jobs/correlation_crdo.js</td></tr>';
+    return;
+  }
+  const byPeer = {};
+  corrs.forEach(c => {
+    if (!byPeer[c.ticker_b]) byPeer[c.ticker_b] = {};
+    byPeer[c.ticker_b]['d' + c.window_days] = c.corr_value;
+    byPeer[c.ticker_b].n = c.n_obs;
+    byPeer[c.ticker_b].ts = c.ts;
+  });
+  const rows = Object.keys(byPeer).map(peer => {
+    const d = byPeer[peer];
+    return `<tr>
+      <td><strong>${peer}</strong></td>
+      <td class="r">${d.d5 != null ? fmt(d.d5, 3) : '—'}</td>
+      <td class="r">${d.d20 != null ? fmt(d.d20, 3) : '—'}</td>
+      <td class="r">${d.n || '—'}</td>
+      <td style="font-size:14px;color:var(--text-very-dim);">${d.ts ? new Date(d.ts).toLocaleDateString() : '—'}</td>
+    </tr>`;
+  }).join('');
+  tbody.innerHTML = rows;
+}
+
+// ── FINANCIALS TABLE ───────────────────────────────────────────────────
+async function updateFinancials() {
+  const data = await fetchJSON('/financials');
+  const tbody = document.querySelector('#fin-table tbody');
+  if (!data || data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" class="empty">No financial data yet — run jobs/edgar_crdo.js</td></tr>';
+    return;
+  }
+  const rows = data.slice(0, 30).map(f => `
+    <tr>
+      <td>${f.period_end}</td>
+      <td>${f.metric}</td>
+      <td class="r">$${fmt((f.value || 0) / 1e6, 1)}M</td>
+    </tr>
+  `).join('');
+  tbody.innerHTML = rows;
+}
+
+// ── NEWS TABLE ─────────────────────────────────────────────────────────
+async function updateNews() {
+  const data = await fetchJSON('/news');
+  const tbody = document.querySelector('#news-table tbody');
+  if (!data || data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" class="empty">No news events yet</td></tr>';
+    return;
+  }
+  const rows = data.slice(0, 30).map(n => `
+    <tr>
+      <td style="font-size:14px;">${new Date(n.ts).toLocaleDateString()}</td>
+      <td><span class="pill context">${n.category}</span></td>
+      <td style="font-size:14px;">${n.headline || '—'}</td>
+    </tr>
+  `).join('');
+  tbody.innerHTML = rows;
+}
+
+// ── LAWSUITS TABLE ─────────────────────────────────────────────────────
+async function updateLawsuits() {
+  const data = await fetchJSON('/lawsuits');
+  const tbody = document.querySelector('#lawsuit-table tbody');
+  if (!data || data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty">No lawsuits found — run jobs/courtlistener_crdo.js</td></tr>';
+    return;
+  }
+  const rows = data.map(l => `
+    <tr>
+      <td>${l.filed_date}</td>
+      <td>${l.court || '—'}</td>
+      <td>${l.case_name || '—'}</td>
+      <td>${l.nature_of_suit || '—'}</td>
+    </tr>
+  `).join('');
+  tbody.innerHTML = rows;
+}
+
+// ── BACKTEST TABLE ─────────────────────────────────────────────────────
+async function updateBacktest() {
+  const data = await fetchJSON('/backtest');
+  const tbody = document.querySelector('#backtest-table tbody');
+  if (!data || data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">No backtest data — run jobs/backtest_crdo.js</td></tr>';
+    return;
+  }
+  const recPill = (rec) => {
+    const cls = rec === 'KEEP' ? 'bull' : rec === 'KILL' ? 'bear' : rec === 'DOWNGRADE' ? 'degraded' : 'context';
+    return `<span class="pill ${cls}">${rec}</span>`;
+  };
+  const rows = data.map(b => `
+    <tr>
+      <td><strong style="color:var(--accent);">${b.hyp_id}</strong></td>
+      <td class="r">${b.n_signals}</td>
+      <td class="r" style="color:var(--green);">${b.n_hits}</td>
+      <td class="r" style="color:var(--red);">${b.n_misses}</td>
+      <td class="r">${b.hit_rate != null ? (b.hit_rate * 100).toFixed(0) + '%' : '—'}</td>
+      <td class="r">${b.avg_alpha_hit != null ? fmt(b.avg_alpha_hit, 2) : '—'}</td>
+      <td class="c">${recPill(b.recommendation)}</td>
+    </tr>
+  `).join('');
+  tbody.innerHTML = rows;
+}
+
+// ── MAIN REFRESH LOOP ──────────────────────────────────────────────────
+async function refreshAll() {
+  const [status, prices, comp, signals] = await Promise.all([
+    fetchJSON('/status'),
+    fetchJSON('/prices'),
+    fetchJSON('/composite'),
+    fetchJSON('/signals')
+  ]);
+
+  if (status) {
+    updateHeader(prices || {}, status);
+    updateAlabCorr(status);
+    updateEarnings(status);
+  }
+  if (comp) updateComposite(comp, status);
+  if (signals) {
+    updateSignals(signals);
+    updateStack(signals);
+  }
+  if (prices) updateHeatmap(prices);
+
+  // v3.1: Update scan health pill on every refresh
+  updateScanHealth();
+
+  // Mark connection as live if we got status
+  if (status) {
+    document.getElementById('conn-dot').className = 'conn live';
+    document.getElementById('conn-label').textContent = 'live';
+  } else {
+    document.getElementById('conn-dot').className = 'conn';
+    document.getElementById('conn-label').textContent = 'disconnected';
+  }
+}
+
+// ── TAB SWITCHING ──────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    // Lazy-load tab data
+    if (btn.dataset.tab === 'graphs') updateGraphs();
+    if (btn.dataset.tab === 'brief') {
+      updateBrief();
+      updateFindings();
+      updateScanHealth();
+    }
+    if (btn.dataset.tab === 'hypotheses') updateHypotheses();
+    if (btn.dataset.tab === 'cohorts') updateCorrelations();
+    if (btn.dataset.tab === 'fundamentals') {
+      updateFinancials();
+      updateNews();
+      updateLawsuits();
+    }
+    if (btn.dataset.tab === 'backtest') updateBacktest();
+  });
+});
+
+// ── SSE LIVE STREAM ────────────────────────────────────────────────────
+function connectSSE() {
+  try {
+    const es = new EventSource(API + '/events');
+    es.addEventListener('signal', () => refreshAll());
+    es.addEventListener('prices', () => {
+      // Throttle prices events — refresh every other one to avoid spam
+      if (!window._lastPriceRefresh || Date.now() - window._lastPriceRefresh > 2000) {
+        window._lastPriceRefresh = Date.now();
+        refreshAll();
+      }
+    });
+    es.onopen = () => {
+      document.getElementById('conn-dot').className = 'conn live';
+      document.getElementById('conn-label').textContent = 'streaming';
+    };
+    es.onerror = () => {
+      document.getElementById('conn-dot').className = 'conn';
+      document.getElementById('conn-label').textContent = 'sse reconnecting…';
+      setTimeout(connectSSE, 5000);
+    };
+  } catch(e) { setTimeout(connectSSE, 5000); }
+}
+
+// ── GRAPHS TAB ─────────────────────────────────────────────────────────
+// Chart instances — kept so we can destroy/rebuild on re-open
+const gCharts = {};
+
+function destroyChart(id) {
+  if (gCharts[id]) { gCharts[id].destroy(); delete gCharts[id]; }
+}
+
+// Colors
+const C = {
+  crdo:    '#4fc3f7',
+  smh:     '#a78bfa',
+  green:   '#4ade80',
+  red:     '#f87171',
+  yellow:  '#fbbf24',
+  dim:     'rgba(138,149,173,0.5)',
+  gridLine:'rgba(42,50,69,0.8)',
+  bull:    'rgba(74,222,128,0.15)',
+  bear:    'rgba(248,113,113,0.15)',
+};
+
+// Shared Chart.js defaults
+const BASE_OPTS = {
+  responsive: true,
+  maintainAspectRatio: true,
+  animation: false,
+  plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+  scales: {
+    x: { grid: { color: C.gridLine }, ticks: { color: '#8a95ad', maxTicksLimit: 8, font: { size: 12 } } },
+    y: { grid: { color: C.gridLine }, ticks: { color: '#8a95ad', font: { size: 12 } } }
+  }
+};
+
+function fmtDate(ts) {
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function fmtDateShort(ts) {
+  const d = new Date(ts);
+  return (d.getMonth()+1) + '/' + d.getDate();
+}
+
+async function updateGraphs() {
+  // Fetch all data in parallel
+  const [pricesVRT, pricesSMH, compositeHist, signalsAll, backtest, prices, financials] = await Promise.all([
+    fetchJSON('/price_history?ticker=VRT&days=30'),
+    fetchJSON('/price_history?ticker=SMH&days=30'),
+    fetchJSON('/composite_history?days=30'),
+    fetchJSON('/signals_all?days=30'),
+    fetchJSON('/backtest'),
+    fetchJSON('/prices'),
+    fetchJSON('/financials'),
+  ]);
+
+  buildPriceChart(pricesVRT, signalsAll);
+  buildRelativeChart(pricesVRT, pricesSMH);
+  buildCompositeHistory(compositeHist);
+  buildSignalGantt(signalsAll);
+  buildHitRates(backtest);
+  buildCohortPerf(prices);
+  buildInventoryChart(financials);
+}
+
+// ── Chart 1: VRT price line + signal overlay markers ──────────────────
+function buildPriceChart(prices, signals) {
+  destroyChart('g-price');
+  if (!prices || prices.length === 0) return;
+
+  // Reduce to one point per day (closing price)
+  const byDay = {};
+  prices.forEach(r => {
+    const d = fmtDateShort(r.ts);
+    byDay[d] = r;
+  });
+  const days = Object.keys(byDay).sort();
+  const labels = days;
+  const data = days.map(d => byDay[d].price);
+
+  // Signal annotations as point overlays
+  const signalPoints = signals ? signals.map(s => ({
+    x: fmtDateShort(s.ts),
+    y: s.crdo_price,
+    dir: s.direction,
+    hyp: s.hyp_id
+  })).filter(s => days.includes(s.x)) : [];
+
+  const bullPts = signalPoints.filter(s => s.dir === 'BULL' || s.dir === 'BULL_STRONG');
+  const bearPts = signalPoints.filter(s => s.dir === 'BEAR' || s.dir === 'BEAR_STRONG');
+
+  const ctx = document.getElementById('g-price').getContext('2d');
+  gCharts['g-price'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'VRT', data,
+          borderColor: C.crdo, backgroundColor: 'rgba(79,195,247,0.08)',
+          borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3
+        },
+        {
+          label: 'BULL signal', data: labels.map(l => { const p = bullPts.find(s => s.x === l); return p ? p.y : null; }),
+          borderColor: 'transparent', backgroundColor: C.green,
+          pointRadius: 8, pointStyle: 'triangle', pointHoverRadius: 10, showLine: false
+        },
+        {
+          label: 'BEAR signal', data: labels.map(l => { const p = bearPts.find(s => s.x === l); return p ? p.y : null; }),
+          borderColor: 'transparent', backgroundColor: C.red,
+          pointRadius: 8, pointStyle: 'triangle', rotation: 180, pointHoverRadius: 10, showLine: false
+        }
+      ]
+    },
+    options: {
+      ...BASE_OPTS,
+      plugins: {
+        legend: { display: true, labels: { color: '#8a95ad', font: { size: 12 }, boxWidth: 12 } },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        x: { ...BASE_OPTS.scales.x, ticks: { ...BASE_OPTS.scales.x.ticks, maxTicksLimit: 10 } },
+        y: { ...BASE_OPTS.scales.y, ticks: { ...BASE_OPTS.scales.y.ticks, callback: v => '$' + v.toFixed(0) } }
+      }
+    }
+  });
+}
+
+// ── Chart 2: VRT vs SMH normalized to 100 ─────────────────────────────
+function buildRelativeChart(pricesVRT, pricesSMH) {
+  destroyChart('g-relative');
+  if (!pricesVRT || !pricesSMH || pricesVRT.length === 0) return;
+
+  // Reduce both to daily, then normalize
+  const byDayVRT = {}, byDaySMH = {};
+  pricesVRT.forEach(r => { const d = fmtDateShort(r.ts); byDayVRT[d] = r.price; });
+  pricesSMH.forEach(r => { const d = fmtDateShort(r.ts); byDaySMH[d] = r.price; });
+
+  const days = Object.keys(byDayVRT).filter(d => byDaySMH[d]).sort();
+  if (days.length < 2) return;
+
+  const base_vrt = byDayVRT[days[0]];
+  const base_smh  = byDaySMH[days[0]];
+  const normVRT  = days.map(d => ((byDayVRT[d] / base_vrt) - 1) * 100);
+  const normSMH   = days.map(d => ((byDaySMH[d]  / base_smh)  - 1) * 100);
+
+  const ctx = document.getElementById('g-relative').getContext('2d');
+  gCharts['g-relative'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: days,
+      datasets: [
+        { label: 'VRT', data: normVRT, borderColor: C.crdo, borderWidth: 2, pointRadius: 0, tension: 0.3 },
+        { label: 'SMH',  data: normSMH,  borderColor: C.smh,  borderWidth: 2, pointRadius: 0, tension: 0.3, borderDash: [4,3] }
+      ]
+    },
+    options: {
+      ...BASE_OPTS,
+      plugins: { legend: { display: true, labels: { color: '#8a95ad', font: { size: 12 }, boxWidth: 12 } } },
+      scales: {
+        x: BASE_OPTS.scales.x,
+        y: { ...BASE_OPTS.scales.y, ticks: { ...BASE_OPTS.scales.y.ticks, callback: v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%' } }
+      }
+    }
+  });
+}
+
+// ── Chart 3: Composite score history ───────────────────────────────────
+function buildCompositeHistory(rows) {
+  destroyChart('g-composite-history');
+  if (!rows || rows.length === 0) {
+    document.getElementById('g-composite-history').parentElement.querySelector('h3').textContent += ' — no data yet';
+    return;
+  }
+
+  // Downsample: keep one point per hour
+  const byHour = {};
+  rows.forEach(r => {
+    const h = new Date(r.ts).toISOString().slice(0, 13); // YYYY-MM-DDTHH
+    byHour[h] = r;
+  });
+  const hours = Object.keys(byHour).sort();
+  const labels = hours.map(h => {
+    const d = new Date(h + ':00:00Z');
+    return (d.getMonth()+1) + '/' + d.getDate() + ' ' + d.getHours() + 'h';
+  });
+  const data = hours.map(h => byHour[h].score);
+  const colors = data.map(v => v > 0 ? C.green : C.red);
+
+  const ctx = document.getElementById('g-composite-history').getContext('2d');
+  gCharts['g-composite-history'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Composite Score', data,
+        backgroundColor: colors, borderRadius: 2
+      }]
+    },
+    options: {
+      ...BASE_OPTS,
+      scales: {
+        x: { ...BASE_OPTS.scales.x, ticks: { ...BASE_OPTS.scales.x.ticks, maxTicksLimit: 8 } },
+        y: {
+          ...BASE_OPTS.scales.y,
+          min: -10, max: 10,
+          ticks: { ...BASE_OPTS.scales.y.ticks, stepSize: 2 }
+        }
+      }
+    }
+  });
+}
+
+// ── Chart 4: Signal Gantt (timeline) ───────────────────────────────────
+function buildSignalGantt(signals) {
+  const el = document.getElementById('g-signal-gantt');
+  if (!signals || signals.length === 0) {
+    el.innerHTML = '<div class="empty">No live signals yet — system is accumulating data</div>';
+    return;
+  }
+
+  // Group by hypothesis
+  const byHyp = {};
+  signals.forEach(s => {
+    if (!byHyp[s.hyp_id]) byHyp[s.hyp_id] = [];
+    byHyp[s.hyp_id].push(s);
+  });
+
+  const now = Date.now();
+  const span = 30 * 86400000;
+  const start = now - span;
+
+  const rows = Object.keys(byHyp).sort().map(hyp => {
+    const fires = byHyp[hyp];
+    const dots = fires.map(s => {
+      const pct = Math.max(0, Math.min(100, ((s.ts - start) / span) * 100));
+      const cls = s.direction === 'BULL' || s.direction === 'BULL_STRONG' ? 'var(--green)' :
+                  s.direction === 'BEAR' || s.direction === 'BEAR_STRONG' ? 'var(--red)' : 'var(--yellow)';
+      const date = new Date(s.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit' });
+      return `<div title="${hyp} fired ${date}: ${s.trigger_desc || ''}"
+        style="position:absolute;left:${pct}%;top:50%;transform:translate(-50%,-50%);
+               width:10px;height:10px;border-radius:50%;background:${cls};cursor:pointer;"></div>`;
+    }).join('');
+
+    return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);">
+      <div style="width:110px;font-size:12px;font-weight:600;color:var(--accent);flex-shrink:0;">${hyp}</div>
+      <div style="flex:1;position:relative;height:14px;background:var(--bg-panel-2);border-radius:3px;">
+        ${dots}
+      </div>
+      <div style="width:24px;font-size:12px;color:var(--text-dim);text-align:right;">${fires.length}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="display:flex;gap:10px;padding:0 0 6px 0;border-bottom:1px solid var(--border);margin-bottom:4px;">
+      <div style="width:110px;font-size:11px;color:var(--text-very-dim);">HYPOTHESIS</div>
+      <div style="flex:1;display:flex;justify-content:space-between;font-size:11px;color:var(--text-very-dim);">
+        <span>30d ago</span><span>today</span>
+      </div>
+      <div style="width:24px;font-size:11px;color:var(--text-very-dim);">N</div>
+    </div>
+    ${rows}`;
+}
+
+// ── Chart 5: Hit rates by hypothesis (horizontal bars) ─────────────────
+function buildHitRates(backtest) {
+  destroyChart('g-hitrates');
+  if (!backtest || backtest.length === 0) return;
+
+  const filtered = backtest.filter(r => r.n_signals >= 3 && r.hit_rate != null)
+    .sort((a, b) => b.hit_rate - a.hit_rate).slice(0, 15);
+
+  const labels = filtered.map(r => r.hyp_id);
+  const data   = filtered.map(r => Math.round(r.hit_rate * 100));
+  const colors = data.map(v => v >= 60 ? C.green : v >= 50 ? C.yellow : C.red);
+
+  const ctx = document.getElementById('g-hitrates').getContext('2d');
+  gCharts['g-hitrates'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label: 'Hit Rate %', data, backgroundColor: colors, borderRadius: 3 }]
+    },
+    options: {
+      ...BASE_OPTS,
+      indexAxis: 'y',
+      scales: {
+        x: {
+          ...BASE_OPTS.scales.x,
+          min: 0, max: 100,
+          ticks: { ...BASE_OPTS.scales.x.ticks, callback: v => v + '%' }
+        },
+        y: { ...BASE_OPTS.scales.y, ticks: { font: { size: 11 }, color: '#8a95ad' } }
+      },
+      plugins: {
+        ...BASE_OPTS.plugins,
+        annotation: {}
+      }
+    }
+  });
+}
+
+// ── Chart 6: Cohort performance today (sorted bar) ─────────────────────
+function buildCohortPerf(prices) {
+  destroyChart('g-cohort-perf');
+  if (!prices) return;
+
+  const COHORT_TICKERS = ['ALAB','MRVL','AVGO','NVDA','AMD','NBIS','CRWV','SMCI','ANET',
+                           'AAOI','COHR','LITE','FN','POET','CIEN','TSM','AMKR','ARM',
+                           'AMZN','MSFT','GOOGL','META','ORCL','SMH','SOXX'];
+  const items = COHORT_TICKERS
+    .filter(t => prices[t] && prices[t].pct != null)
+    .map(t => ({ t, pct: prices[t].pct }))
+    .sort((a, b) => b.pct - a.pct);
+
+  const labels = items.map(i => i.t);
+  const data   = items.map(i => i.pct);
+  const colors = data.map(v => v > 0 ? 'rgba(74,222,128,0.7)' : 'rgba(248,113,113,0.7)');
+
+  const ctx = document.getElementById('g-cohort-perf').getContext('2d');
+  gCharts['g-cohort-perf'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label: 'Pct Change', data, backgroundColor: colors, borderRadius: 2 }]
+    },
+    options: {
+      ...BASE_OPTS,
+      scales: {
+        x: { ...BASE_OPTS.scales.x, ticks: { font: { size: 10 }, color: '#8a95ad' } },
+        y: { ...BASE_OPTS.scales.y, ticks: { ...BASE_OPTS.scales.y.ticks, callback: v => v + '%' } }
+      }
+    }
+  });
+}
+
+// ── Chart 7: Inventory build (H10) ─────────────────────────────────────
+function buildInventoryChart(financials) {
+  destroyChart('g-inventory');
+  if (!financials) return;
+
+  const inv = financials
+    .filter(r => r.metric === 'InventoryNet' && r.value != null)
+    .sort((a, b) => a.period_end.localeCompare(b.period_end))
+    .slice(-8);
+
+  if (inv.length === 0) {
+    document.getElementById('g-inventory').parentElement.style.opacity = '0.5';
+    return;
+  }
+
+  const labels = inv.map(r => r.period_end.slice(0, 7));
+  const data   = inv.map(r => r.value / 1e6); // millions
+  const colors = data.map((v, i) => i === 0 ? C.dim : (v > data[i-1] ? 'rgba(74,222,128,0.7)' : 'rgba(248,113,113,0.7)'));
+
+  const ctx = document.getElementById('g-inventory').getContext('2d');
+  gCharts['g-inventory'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label: 'Inventory ($M)', data, backgroundColor: colors, borderRadius: 3 }]
+    },
+    options: {
+      ...BASE_OPTS,
+      scales: {
+        x: BASE_OPTS.scales.x,
+        y: { ...BASE_OPTS.scales.y, ticks: { ...BASE_OPTS.scales.y.ticks, callback: v => '$' + v.toFixed(0) + 'M' } }
+      }
+    }
+  });
+}
+
+// ── END GRAPHS TAB ──────────────────────────────────────────────────────
+
+// ── POSITION TAB ──────────────────────────────────────────────────────────
+async function updatePosition() {
+  const pos   = await fetchJSON('/position').catch(() => null);
+  const risk  = await fetchJSON('/risk').catch(() => null);
+  if (!pos) return;
+
+  const el = document.getElementById('tab-position');
+  if (!el) return;
+
+  const killActive = pos.kill_switch;
+  const haltActive = pos.halt;
+  const halfActive = pos.half_size;
+
+  const statusColor = killActive ? 'var(--bear)' : haltActive ? '#f97316' : halfActive ? '#fbbf24' : 'var(--bull)';
+  const statusLabel = killActive ? '💀 KILL-SWITCH ACTIVE' : haltActive ? '⛔ TRADING HALTED' : halfActive ? '⚠ HALF-SIZE MODE' : '✓ Normal';
+
+  el.innerHTML = `
+    <div class="card" style="border-left:3px solid ${statusColor}">
+      <div class="card-label">Risk Status</div>
+      <div style="font-size:20px;font-weight:700;color:${statusColor}">${statusLabel}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Composite Score</div>
+      <div style="font-size:32px;font-weight:700">${pos.composite != null ? pos.composite.toFixed(1) : '—'}</div>
+      <div style="color:var(--text-dim)">${pos.direction || '—'}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Recommended Position</div>
+      <div style="font-size:32px;font-weight:700;color:${pos.recommended_pct > 0 ? 'var(--bull)' : 'var(--text-dim)'}">${pos.recommended_pct != null ? pos.recommended_pct + '%' : '—'}</div>
+      <div style="color:var(--text-dim)">${pos.label || ''} of VRT_BOOK</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Regime</div>
+      <div style="font-size:18px;font-weight:600">${pos.regime || '—'}</div>
+      <div style="color:var(--text-dim);font-size:12px">${pos.regime_vector || ''}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Earnings Proximity Weight</div>
+      <div style="font-size:24px;font-weight:700">${pos.earnings_weight != null ? pos.earnings_weight.toFixed(1) + '×' : '—'}</div>
+    </div>
+    ${risk ? `<div class="card">
+      <div class="card-label">Drawdown from Peak</div>
+      <div style="font-size:24px;font-weight:700;color:${parseFloat(risk.risk_state && risk.risk_state.current_drawdown_pct || 0) > 10 ? 'var(--bear)' : 'var(--text)'}">
+        ${risk.risk_state ? parseFloat(risk.risk_state.current_drawdown_pct || 0).toFixed(1) + '%' : '—'}
+      </div>
+      <div style="color:var(--text-dim)">Consecutive losers: ${risk.risk_state ? risk.risk_state.consecutive_losers || 0 : '—'}</div>
+    </div>` : ''}
+    <div class="card" style="grid-column:1/-1">
+      <div class="card-label">Position Sizing Table</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="color:var(--text-dim)">
+          <th style="text-align:left;padding:4px">Composite</th>
+          <th style="text-align:left;padding:4px">Confidence</th>
+          <th style="text-align:left;padding:4px">Position Size</th>
+          <th style="text-align:left;padding:4px">Horizon</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="padding:4px">0–9</td><td>LOW</td><td style="color:var(--text-dim)">0% — FLAT</td><td>—</td></tr>
+          <tr><td style="padding:4px">10–14</td><td>MEDIUM-LOW</td><td>10%</td><td>5 days</td></tr>
+          <tr style="background:var(--bg-panel-2)"><td style="padding:4px">15–19</td><td>MEDIUM</td><td>25%</td><td>5–10 days</td></tr>
+          <tr><td style="padding:4px">20–27</td><td>HIGH</td><td>50%</td><td>10–20 days</td></tr>
+          <tr><td style="padding:4px">28–35</td><td>VERY HIGH</td><td>75%</td><td>10–30 days</td></tr>
+          <tr><td style="padding:4px">36+</td><td>EXTREME</td><td>100%</td><td>10–30 days</td></tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ── REGIME TAB ───────────────────────────────────────────────────────────
+async function updateRegime() {
+  const data = await fetchJSON('/regime').catch(() => null);
+  if (!data) return;
+  const el = document.getElementById('tab-regime');
+  if (!el) return;
+
+  const cur = data.current || {};
+  const dimColor = (v, good, warn) => v === good ? 'var(--bull)' : v === warn ? '#fbbf24' : 'var(--bear)';
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-label">Current Regime Label</div>
+      <div style="font-size:22px;font-weight:700">${cur.label || '—'}</div>
+      <div style="color:var(--text-dim);font-size:12px">${cur.vector || ''}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Volatility (VIX)</div>
+      <div style="font-size:20px;font-weight:700;color:${dimColor(cur.vix,'LOW','NORMAL')}">${cur.vix || '—'}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Growth (PMI)</div>
+      <div style="font-size:20px;font-weight:700;color:${cur.pmi === 'EXPANSION' ? 'var(--bull)' : 'var(--bear)'}">${cur.pmi || '—'}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Rates (10Y 30d Δ)</div>
+      <div style="font-size:20px;font-weight:700;color:${cur.rates === 'FALLING' ? 'var(--bull)' : cur.rates === 'FLAT' ? 'var(--text)' : 'var(--bear)'}">${cur.rates || '—'}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Risk Appetite (HYG)</div>
+      <div style="font-size:20px;font-weight:700;color:${cur.risk === 'RISK_ON' ? 'var(--bull)' : cur.risk === 'NEUTRAL' ? 'var(--text)' : 'var(--bear)'}">${cur.risk || '—'}</div>
+    </div>
+    <div class="card" style="grid-column:1/-1">
+      <div class="card-label">Regime History (7 days)</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="color:var(--text-dim)">
+          <th style="text-align:left;padding:4px">Date</th>
+          <th style="text-align:left;padding:4px">Vector</th>
+          <th style="text-align:left;padding:4px">Label</th>
+          <th style="text-align:left;padding:4px">Transition</th>
+        </tr></thead>
+        <tbody>
+          ${(data.recent || []).map(r => `
+            <tr>
+              <td style="padding:4px">${r.et_date || ''}</td>
+              <td style="font-family:monospace;font-size:11px">${r.full_vector || ''}</td>
+              <td>${r.full_vector ? r.full_vector.includes('STRESSED') ? '<span style="color:var(--bear)">STRESSED</span>' : r.full_vector.includes('LOW_VOL') ? '<span style="color:var(--bull)">LOW_VOL</span>' : 'ELEVATED' : ''}</td>
+              <td>${r.is_transition ? '<span style="color:#fbbf24">⚡ SHIFT</span>' : '—'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="card" style="grid-column:1/-1">
+      <div class="card-label">Regime × Signal Weight Matrix (selected)</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="color:var(--text-dim)">
+          <th style="text-align:left;padding:4px">Signal</th>
+          <th style="padding:4px">LOW_VOL / RISK_ON</th>
+          <th style="padding:4px">ELEVATED / NEUTRAL</th>
+          <th style="padding:4px">STRESSED / RISK_OFF</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="padding:4px">S1_LAG</td><td style="text-align:center">1.0×</td><td style="text-align:center">1.25×</td><td style="text-align:center;color:var(--bear)">0.5×</td></tr>
+          <tr style="background:var(--bg-panel-2)"><td style="padding:4px">S2 (momentum)</td><td style="text-align:center;color:var(--bull)">1.25×</td><td style="text-align:center">1.0×</td><td style="text-align:center;color:var(--bear)">0.25×</td></tr>
+          <tr><td style="padding:4px">H22_buy (insider buy)</td><td style="text-align:center;color:var(--bull)">1.5×</td><td style="text-align:center">1.0×</td><td style="text-align:center;color:var(--bull)">2.0×</td></tr>
+          <tr style="background:var(--bg-panel-2)"><td style="padding:4px">H-AR (analyst revisions)</td><td style="text-align:center;color:var(--bull)">1.25×</td><td style="text-align:center">1.0×</td><td style="text-align:center;color:var(--bear)">0.75×</td></tr>
+          <tr><td style="padding:4px">H24 (VIX recovery)</td><td style="text-align:center;color:var(--text-dim)">0×</td><td style="text-align:center;color:var(--text-dim)">0×</td><td style="text-align:center;color:var(--bull)">2.0×</td></tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ── REVISIONS TAB ─────────────────────────────────────────────────────────
+async function updateRevisions() {
+  const revs = await fetchJSON('/revisions').catch(() => []);
+  const el   = document.getElementById('tab-revisions');
+  if (!el) return;
+
+  if (!revs || !revs.length) {
+    el.innerHTML = '<div class="card"><div class="card-label">Analyst Revisions (H-AR)</div><div style="color:var(--text-dim)">No revisions recorded yet. analyst_revisions_vrt2.js runs daily at 05:00 ET.</div></div>';
+    return;
+  }
+
+  const upCount   = revs.filter(r => r.direction === 'UP').length;
+  const downCount = revs.filter(r => r.direction === 'DOWN').length;
+  const har7d     = revs.filter(r => r.ts && Date.now() - r.ts < 7 * 86400000);
+  const up7d      = har7d.filter(r => r.direction === 'UP').length;
+  const arFiring  = up7d >= 3;
+
+  el.innerHTML = `
+    <div class="card" style="border-left:3px solid ${arFiring ? 'var(--bull)' : 'var(--text-dim)'}">
+      <div class="card-label">H-AR Status (7-day window)</div>
+      <div style="font-size:24px;font-weight:700;color:${arFiring ? 'var(--bull)' : 'var(--text)'}">
+        ${up7d} upward revision${up7d !== 1 ? 's' : ''} ${arFiring ? '✓ THRESHOLD MET' : `(need 3)`}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">All Time</div>
+      <div style="font-size:20px"><span style="color:var(--bull)">↑ ${upCount}</span> / <span style="color:var(--bear)">↓ ${downCount}</span></div>
+    </div>
+    <div class="card" style="grid-column:1/-1">
+      <div class="card-label">Recent Revisions</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="color:var(--text-dim)">
+          <th style="text-align:left;padding:4px">Date</th>
+          <th style="text-align:left;padding:4px">Firm</th>
+          <th style="text-align:left;padding:4px">Action</th>
+          <th style="text-align:left;padding:4px">Prior</th>
+          <th style="text-align:left;padding:4px">New</th>
+          <th style="text-align:left;padding:4px">Change</th>
+        </tr></thead>
+        <tbody>
+          ${revs.slice(0, 20).map(r => {
+            const delta = r.new_target && r.prior_target ? (r.new_target - r.prior_target).toFixed(0) : null;
+            const col   = r.direction === 'UP' ? 'var(--bull)' : r.direction === 'DOWN' ? 'var(--bear)' : 'var(--text)';
+            return `<tr>
+              <td style="padding:4px">${r.et_date || ''}</td>
+              <td style="padding:4px">${r.firm || '—'}</td>
+              <td style="padding:4px;color:${col}">${r.direction === 'UP' ? '↑' : r.direction === 'DOWN' ? '↓' : '→'} ${r.rating_change || r.direction || ''}</td>
+              <td style="padding:4px">${r.prior_target ? '$' + r.prior_target.toFixed(0) : '—'}</td>
+              <td style="padding:4px">${r.new_target ? '$' + r.new_target.toFixed(0) : '—'}</td>
+              <td style="padding:4px;color:${col}">${delta ? (delta > 0 ? '+' : '') + delta : '—'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────
+refreshAll();
+updateInsiders();
+setInterval(refreshAll, REFRESH_MS);
+setInterval(updateInsiders, 5 * 60000);
+setInterval(updatePosition, 30000);
+setInterval(updateRegime, 5 * 60000);
+setInterval(updateRevisions, 5 * 60000);
+connectSSE();
+
+// Tab activation hook — load data on first show
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const tab = this.dataset.tab;
+    if (tab === 'position')  updatePosition();
+    if (tab === 'regime')    updateRegime();
+    if (tab === 'revisions') updateRevisions();
+  });
+});
+</script>
+
+<!-- ── POSITION TAB PANEL ── -->
+<div class="tab-content grid" id="tab-position" style="display:none"></div>
+<!-- ── REGIME TAB PANEL ── -->
+<div class="tab-content grid" id="tab-regime" style="display:none"></div>
+<!-- ── REVISIONS TAB PANEL ── -->
+<div class="tab-content grid" id="tab-revisions" style="display:none"></div>
+
+</body>
+</html>
+
