@@ -5,8 +5,6 @@
 
 A production-discipline trading research system. Collects 27 data streams throughout the day, runs semantic review at 6am ET, and produces a daily intelligence brief. Auto-kills its own signals when they fail. Pauses itself on drawdown.
 
-Part of the Agentic Womb fleet (Bend, Oregon). Sister to CRDO (Credo Technology), built on the same validated architecture.
-
 ---
 
 ## What it does
